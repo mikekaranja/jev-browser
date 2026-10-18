@@ -1,0 +1,279 @@
+{
+ "label": "live-public, real Jev loop",
+ "stop": {
+  "stop_reason": "schedule complete",
+  "spent_usd_estimate": 0.04468624800000001,
+  "unexecuted": []
+ },
+ "all_phases_ledger": {
+  "outbound_requests": 90,
+  "settled_usd_est": 0.044686248000000005,
+  "unknown_billing_requests": 0,
+  "unknown_billing_reserved_usd": 0
+ },
+ "warmups": [
+  {
+   "run_id": "000-live-wiki-coffee-espresso-headed",
+   "status": "done",
+   "verified": true,
+   "task_ms": 4498
+  },
+  {
+   "run_id": "001-live-wiki-coffee-espresso-headless",
+   "status": "done",
+   "verified": true,
+   "task_ms": 3848
+  }
+ ],
+ "overall": {
+  "attempts": 30,
+  "verified_passes": 30,
+  "completion_rate": 1,
+  "completion_wilson95": [
+   0.8864829086095221,
+   1
+  ],
+  "claimed_successes": 30,
+  "false_successes": 0,
+  "false_success_rate_of_attempts": 0,
+  "false_success_rate_of_claims": 0,
+  "failure_categories": {
+   "pass": 30
+  },
+  "task_ms_median": 3954,
+  "task_ms_p95": 13147,
+  "startup_ms_median": 909.5,
+  "startup_ms_p95": 1761,
+  "pass_task_ms_median": 3954,
+  "executed_actions_median": 1,
+  "decision_steps_median": 2,
+  "recoveries_total": 0,
+  "action_errors_total": 3,
+  "jev_calls_total": 73,
+  "jev_http_requests_total": 73,
+  "jev_retries_total": 0,
+  "jev_input_tokens_total": 982664,
+  "typing_http_requests_total": 13,
+  "jev_cost_usd_est": 0.04127188799999999,
+  "typing_cost_usd_est": 0.00021941999999999998,
+  "total_cost_usd_est": 0.04149130799999999,
+  "cost_per_verified_success_usd_est": 0.0013830435999999996,
+  "degraded_runs": 0,
+  "small_sample": false
+ },
+ "by_mode": {
+  "headless": {
+   "attempts": 15,
+   "verified_passes": 15,
+   "completion_rate": 1,
+   "completion_wilson95": [
+    0.7961107336956521,
+    1
+   ],
+   "claimed_successes": 15,
+   "false_successes": 0,
+   "false_success_rate_of_attempts": 0,
+   "false_success_rate_of_claims": 0,
+   "failure_categories": {
+    "pass": 15
+   },
+   "task_ms_median": 4092,
+   "task_ms_p95": 13205,
+   "startup_ms_median": 751,
+   "startup_ms_p95": 1501,
+   "pass_task_ms_median": 4092,
+   "executed_actions_median": 1,
+   "decision_steps_median": 2,
+   "recoveries_total": 0,
+   "action_errors_total": 3,
+   "jev_calls_total": 38,
+   "jev_http_requests_total": 38,
+   "jev_retries_total": 0,
+   "jev_input_tokens_total": 516374,
+   "typing_http_requests_total": 8,
+   "jev_cost_usd_est": 0.021687708,
+   "typing_cost_usd_est": 0.00013482000000000001,
+   "total_cost_usd_est": 0.021822528,
+   "cost_per_verified_success_usd_est": 0.0014548352,
+   "degraded_runs": 0,
+   "small_sample": true
+  },
+  "headed": {
+   "attempts": 15,
+   "verified_passes": 15,
+   "completion_rate": 1,
+   "completion_wilson95": [
+    0.7961107336956521,
+    1
+   ],
+   "claimed_successes": 15,
+   "false_successes": 0,
+   "false_success_rate_of_attempts": 0,
+   "false_success_rate_of_claims": 0,
+   "failure_categories": {
+    "pass": 15
+   },
+   "task_ms_median": 3779,
+   "task_ms_p95": 7471,
+   "startup_ms_median": 1129,
+   "startup_ms_p95": 1802,
+   "pass_task_ms_median": 3779,
+   "executed_actions_median": 1,
+   "decision_steps_median": 2,
+   "recoveries_total": 0,
+   "action_errors_total": 0,
+   "jev_calls_total": 35,
+   "jev_http_requests_total": 35,
+   "jev_retries_total": 0,
+   "jev_input_tokens_total": 466290,
+   "typing_http_requests_total": 5,
+   "jev_cost_usd_est": 0.01958418,
+   "typing_cost_usd_est": 0.0000846,
+   "total_cost_usd_est": 0.01966878,
+   "cost_per_verified_success_usd_est": 0.001311252,
+   "degraded_runs": 0,
+   "small_sample": true
+  }
+ },
+ "by_case_mode": {
+  "live-wiki-search": {
+   "headless": {
+    "n": 5,
+    "pass": 5,
+    "statuses": [
+     "done",
+     "done",
+     "done",
+     "done",
+     "done"
+    ],
+    "categories": [
+     "pass",
+     "pass",
+     "pass",
+     "pass",
+     "pass"
+    ],
+    "task_ms_median": 12472,
+    "steps_median": 4
+   },
+   "headed": {
+    "n": 5,
+    "pass": 5,
+    "statuses": [
+     "done",
+     "done",
+     "done",
+     "done",
+     "done"
+    ],
+    "categories": [
+     "pass",
+     "pass",
+     "pass",
+     "pass",
+     "pass"
+    ],
+    "task_ms_median": 6500,
+    "steps_median": 3
+   }
+  },
+  "live-wiki-coffee-espresso": {
+   "headless": {
+    "n": 5,
+    "pass": 5,
+    "statuses": [
+     "done",
+     "done",
+     "done",
+     "done",
+     "done"
+    ],
+    "categories": [
+     "pass",
+     "pass",
+     "pass",
+     "pass",
+     "pass"
+    ],
+    "task_ms_median": 4092,
+    "steps_median": 2
+   },
+   "headed": {
+    "n": 5,
+    "pass": 5,
+    "statuses": [
+     "done",
+     "done",
+     "done",
+     "done",
+     "done"
+    ],
+    "categories": [
+     "pass",
+     "pass",
+     "pass",
+     "pass",
+     "pass"
+    ],
+    "task_ms_median": 3779,
+    "steps_median": 2
+   }
+  },
+  "live-example-iana": {
+   "headless": {
+    "n": 5,
+    "pass": 5,
+    "statuses": [
+     "done",
+     "done",
+     "done",
+     "done",
+     "done"
+    ],
+    "categories": [
+     "pass",
+     "pass",
+     "pass",
+     "pass",
+     "pass"
+    ],
+    "task_ms_median": 3125,
+    "steps_median": 2
+   },
+   "headed": {
+    "n": 5,
+    "pass": 5,
+    "statuses": [
+     "done",
+     "done",
+     "done",
+     "done",
+     "done"
+    ],
+    "categories": [
+     "pass",
+     "pass",
+     "pass",
+     "pass",
+     "pass"
+    ],
+    "task_ms_median": 3014,
+    "steps_median": 2
+   }
+  }
+ },
+ "paired": {
+  "pairs": 15,
+  "both_pass": 15,
+  "headed_only": 0,
+  "headless_only": 0,
+  "both_fail": 0,
+  "mcnemar_exact_p": null,
+  "reported_status_agreement": 1,
+  "task_ms_diff_headed_minus_headless_median": -327,
+  "task_ms_diff_p95_abs": 7578,
+  "small_sample": true
+ },
+ "negative_controls": null
+}

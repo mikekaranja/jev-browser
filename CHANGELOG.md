@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- New `wait` control: a bounded 2-second pause for content that is still loading. The stuck stop is deferred while requests are in flight, the document is still loading, or the DOM did not settle, at most twice per run so that always-busy pages still stop. Content that rendered 3 s after load was never reached before.
+- Paginated lists: when the task names an ID-shaped target and the page shows a sorted run of same-prefix IDs, the step state gets a code-computed `list_position` fact (on this page, or before or after the visible items). Before, Jev split between Previous and Next because it cannot compare the numbers.
+- Repeat-no-op recovery now switches only to a read-only option, a scroll or a plain link. If none is left, the run stops as `stuck` instead of clicking a button, typing, selecting, or submitting for the model. Before this change, recovery could click a state-changing control such as "Add to cart" that the model did not choose.
+
 ## 0.8.8
 
 - Updated typing-provider dependencies and Playwright, including its cross-origin redirect fix.
