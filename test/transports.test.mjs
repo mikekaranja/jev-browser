@@ -346,3 +346,171 @@ test("control observations use bounded state tokens, never field values or arbit
     assert.equal(JSON.stringify(observed).includes('private-'), false);
   } finally { await browser.close(); }
 });
+
+test("repeat-no-op recovery never falls back to a write; it follows a link or stops stuck", async (t) => {
+  let browser;
+  try {
+    browser = await chromium.launch();
+  } catch (error) {
+    if (String(error).includes("Executable doesn't exist")) {
+      t.skip("Playwright browser binary is not installed");
+      return;
+    }
+    throw error;
+  }
+  try {
+    for (const withLink of [false, true]) {
+      const page = await browser.newPage();
+      // Short page: scroll_down has no effect, so a repeated scroll_down triggers recovery.
+      const body = `<h1>Moka Express</h1><button type="button" onclick="window.writes = (window.writes || 0) + 1">Add to cart</button>${withLink ? '<a href="https://fixture.test/next">Next page</a>' : ""}`;
+      await page.route("https://fixture.test/**", (route) => route.fulfill({ contentType: "text/html", body: route.request().url().endsWith("/next") ? "<h1>Next page</h1>" : body }));
+      await page.goto("https://fixture.test/");
+      // The model always prefers scrolling; the write button is the best fallback, then the link.
+      const transport = { name: "scripted", async ask({ questions }) {
+        const keys = Object.keys(questions.action.criteria);
+        const weight = (key) => /Add to cart/.test(questions.action.criteria[key]) ? 0.3 : /Next page/.test(questions.action.criteria[key]) ? 0.1 : 0;
+        const probabilities = Object.fromEntries(keys.map((key) => [key, weight(key)]));
+        probabilities.scroll_down = 1 - Object.values(probabilities).reduce((a, b) => a + b, 0);
+        return { answers: { action: { type: "choice", choice: "scroll_down", probabilities }, goal_done: { type: "noul", noul: 0 }, stuck: { type: "noul", noul: 0 } }, usage, model: "scripted" };
+      } };
+      const result = await navigate({ task: "Add the Moka Express in Midnight Blue to the cart", page, transport, allowTyping: false, maxSteps: 3, screenshot: "none" });
+      assert.equal(await page.evaluate(() => window.writes ?? 0), 0, "recovery must never click the write button");
+      assert.equal(result.steps[0].executed_action, "scroll_down");
+      if (withLink) {
+        assert.match(result.steps[1].recovery_reason, /read-only/);
+        assert.match(result.steps[1].detail, /Next page/);
+        assert.match(result.final_url, /\/next$/);
+      } else {
+        assert.equal(result.status, "stuck");
+        assert.equal(result.steps.length, 2);
+        assert.equal(result.steps[1].executed_action, null);
+        assert.match(result.steps[1].recovery_reason, /no read-only alternate/);
+      }
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
+
+test("repeat-no-op recovery after a repeated typing step stops stuck instead of typing elsewhere or submitting", async (t) => {
+  let browser;
+  try {
+    browser = await chromium.launch();
+  } catch (error) {
+    if (String(error).includes("Executable doesn't exist")) {
+      t.skip("Playwright browser binary is not installed");
+      return;
+    }
+    throw error;
+  }
+  // Local OpenAI-compatible stand-in for the typing provider: always types the same name.
+  const { createServer } = await import("node:http");
+  const typingApi = createServer((req, res) => {
+    req.resume();
+    req.on("end", () => {
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ id: "chatcmpl-fake", object: "chat.completion", created: 0, model: "fake-typing-model", choices: [{ index: 0, message: { role: "assistant", content: "Ada Lovelace" }, finish_reason: "stop" }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
+    });
+  });
+  await new Promise((resolve) => typingApi.listen(0, "127.0.0.1", resolve));
+  const previous = process.env.JEV_BROWSER_TYPE_BASE_URL;
+  process.env.JEV_BROWSER_TYPE_BASE_URL = `http://127.0.0.1:${typingApi.address().port}/v1`;
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<form onsubmit="event.preventDefault(); window.submits = (window.submits || 0) + 1"><label for="name">Full name</label><input id="name"><label for="email">Email</label><input id="email" type="email"><button type="submit">Send message</button></form>');
+    // Jev keeps re-picking the name field; typing into the email field and submitting are the next-best options.
+    const transport = { name: "scripted", async ask({ questions }) {
+      const criteria = questions.action.criteria;
+      const weight = (key) => key.startsWith("type_") && /Full name/.test(criteria[key]) ? 0.5 : key.startsWith("type_") && /Email/.test(criteria[key]) ? 0.3 : /Send message/.test(criteria[key]) ? 0.2 : 0;
+      const probabilities = Object.fromEntries(Object.keys(criteria).map((key) => [key, weight(key)]));
+      const choice = Object.keys(probabilities).find((key) => probabilities[key] === 0.5);
+      return { answers: { action: { type: "choice", choice, probabilities }, goal_done: { type: "noul", noul: 0 }, stuck: { type: "noul", noul: 0 } }, usage, model: "scripted" };
+    } };
+    const result = await navigate({ task: "Fill in the name Ada Lovelace and the email ada@example.com without sending the form", page, transport, maxSteps: 4, screenshot: "none" });
+    assert.match(result.steps[0].detail, /^typed "Ada Lovelace"/);
+    assert.equal(result.status, "stuck");
+    assert.equal(result.steps.length, 2);
+    assert.equal(result.steps[1].executed_action, null);
+    assert.match(result.steps[1].recovery_reason, /no read-only alternate/);
+    assert.equal(await page.locator("#name").inputValue(), "Ada Lovelace");
+    assert.equal(await page.locator("#email").inputValue(), "", "recovery must not type into another field");
+    assert.equal(await page.evaluate(() => window.submits ?? 0), 0, "recovery must not submit the form");
+  } finally {
+    if (previous === undefined) delete process.env.JEV_BROWSER_TYPE_BASE_URL; else process.env.JEV_BROWSER_TYPE_BASE_URL = previous;
+    await browser.close();
+    await new Promise((resolve) => typingApi.close(resolve));
+  }
+});
+
+test("wait action reaches content that renders after 3 s, and the stuck watcher defers while a request is in flight", async (t) => {
+  let browser;
+  try {
+    browser = await chromium.launch();
+  } catch (error) {
+    if (String(error).includes("Executable doesn't exist")) {
+      t.skip("Playwright browser binary is not installed");
+      return;
+    }
+    throw error;
+  }
+  try {
+    for (const viaRequest of [false, true]) {
+      const page = await browser.newPage();
+      // Timer variant: the link appears 3 s after load with nothing in flight.
+      // Request variant: the link arrives in a response that takes 6 s, while stuck stays at 0.95.
+      const load = viaRequest
+        ? "fetch('https://fixture.test/api/reports').then((r) => r.text()).then((html) => { document.getElementById('list').innerHTML = html; });"
+        : "setTimeout(() => { document.getElementById('list').innerHTML = '<a href=\"https://fixture.test/q3\">Q3 2026 sales summary</a>'; }, 3000);";
+      await page.route("https://fixture.test/**", async (route) => {
+        const url = route.request().url();
+        if (url.endsWith("/api/reports")) {
+          await new Promise((resolve) => setTimeout(resolve, 6000));
+          return route.fulfill({ contentType: "text/html", body: '<a href="https://fixture.test/q3">Q3 2026 sales summary</a>' });
+        }
+        return route.fulfill({ contentType: "text/html", body: url.endsWith("/q3") ? "<h1>Q3 2026 sales summary</h1>" : `<h1>Reports</h1><div id="list">Loading reports…</div><script>${load}</script>` });
+      });
+      const transport = { name: "scripted", async ask({ questions }) {
+        const criteria = questions.action.criteria;
+        const link = Object.keys(criteria).find((key) => /Q3 2026/.test(criteria[key]));
+        const done = /^Q3 2026/.test(String(await page.title().catch(() => ""))) || page.url().endsWith("/q3");
+        const choice = done ? "done" : link ?? "wait";
+        const probabilities = Object.fromEntries(Object.keys(criteria).map((key) => [key, key === choice ? 1 : 0]));
+        return { answers: { action: { type: "choice", choice, probabilities }, goal_done: { type: "noul", noul: 0 }, stuck: { type: "noul", noul: viaRequest && !link ? 0.95 : 0 } }, usage, model: "scripted" };
+      } };
+      const result = await navigate({ task: "Open the Q3 2026 sales summary report", startUrl: "https://fixture.test/", page, transport, allowTyping: false, maxSteps: 8, maxSeconds: 60, screenshot: "none" });
+      assert.equal(result.status, "done", JSON.stringify(result.steps.map((s) => [s.executed_action, s.detail])));
+      assert.match(result.final_url, /\/q3$/);
+      assert.ok(result.steps.some((s) => s.executed_action === "wait" && s.detail.startsWith("waited 2 s")));
+      if (viaRequest) assert.ok(result.steps.some((s) => /stuck watcher deferred/.test(s.detail)), "stuck must defer while the request is in flight");
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
+
+test("a page that always looks busy defers the stuck stop at most twice", async (t) => {
+  let browser;
+  try {
+    browser = await chromium.launch();
+  } catch (error) {
+    if (String(error).includes("Executable doesn't exist")) {
+      t.skip("Playwright browser binary is not installed");
+      return;
+    }
+    throw error;
+  }
+  try {
+    const page = await browser.newPage();
+    // A long-poll request that never answers keeps one request in flight for the whole run.
+    await page.route("https://busy.test/**", (route) => {
+      if (route.request().url().endsWith("/stream")) return;
+      return route.fulfill({ contentType: "text/html", body: "<h1>Live feed</h1><a href='https://busy.test/x'>Reports</a><script>fetch('/stream')</script>" });
+    });
+    const transport = { name: "scripted", async ask({ questions }) {
+      const keys = Object.keys(questions.action.criteria);
+      return { answers: { action: { type: "choice", choice: "wait", probabilities: Object.fromEntries(keys.map((key) => [key, key === "wait" ? 1 : 0])) }, goal_done: { type: "noul", noul: 0 }, stuck: { type: "noul", noul: 0.95 } }, usage, model: "scripted" };
+    } };
+    const result = await navigate({ task: "Open the live feed report", startUrl: "https://busy.test/", page, transport, allowTyping: false, maxSteps: 12, maxSeconds: 60, screenshot: "none" });
+    assert.equal(result.status, "stuck");
+    assert.equal(result.steps.filter((s) => /stuck watcher deferred/.test(s.detail)).length, 2);
+    assert.equal(result.steps.length, 5, "steps 3 and 4 defer; step 5 stops");
+  } finally { await browser.close(); }
+});

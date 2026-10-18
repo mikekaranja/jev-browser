@@ -1,0 +1,34 @@
+benchmark: 32 attempts scheduled (public, typesafe); writing /Users/mikekaranja/Projects/tools/browser-automation/jev-browser/benchmarks/results/public-smoke-fixes
+000-live-wiki-coffee-espresso-headed status=done verified=true category=pass task_ms=3918 steps=2 spent=$0.0016
+001-live-wiki-coffee-espresso-headless status=done verified=true category=pass task_ms=3511 steps=2 spent=$0.0032
+002-live-wiki-search-headless status=done verified=true category=pass task_ms=13246 steps=4 spent=$0.0061
+003-live-wiki-search-headed status=done verified=true category=pass task_ms=5605 steps=3 spent=$0.0083
+004-live-wiki-coffee-espresso-headless status=done verified=true category=pass task_ms=4008 steps=2 spent=$0.0099
+005-live-wiki-coffee-espresso-headed status=done verified=true category=pass task_ms=4021 steps=2 spent=$0.0115
+006-live-example-iana-headed status=done verified=true category=pass task_ms=3146 steps=2 spent=$0.0117
+007-live-example-iana-headless status=done verified=true category=pass task_ms=2991 steps=2 spent=$0.0118
+008-live-example-iana-headless status=done verified=true category=pass task_ms=2876 steps=2 spent=$0.0119
+009-live-example-iana-headed status=done verified=true category=pass task_ms=2780 steps=2 spent=$0.0121
+010-live-wiki-coffee-espresso-headless status=done verified=true category=pass task_ms=4052 steps=2 spent=$0.0137
+011-live-wiki-coffee-espresso-headed status=done verified=true category=pass task_ms=3571 steps=2 spent=$0.0153
+012-live-wiki-search-headed status=done verified=true category=pass task_ms=5805 steps=3 spent=$0.0175
+013-live-wiki-search-headless status=done verified=true category=pass task_ms=7883 steps=4 spent=$0.0193
+014-live-wiki-coffee-espresso-headed status=done verified=true category=pass task_ms=4261 steps=2 spent=$0.0209
+015-live-wiki-coffee-espresso-headless status=done verified=true category=pass task_ms=3403 steps=2 spent=$0.0225
+016-live-example-iana-headless status=done verified=true category=pass task_ms=2850 steps=2 spent=$0.0226
+017-live-example-iana-headed status=done verified=true category=pass task_ms=2978 steps=2 spent=$0.0228
+018-live-wiki-search-headless status=done verified=true category=pass task_ms=6462 steps=3 spent=$0.0250
+019-live-wiki-search-headed status=done verified=true category=pass task_ms=6301 steps=3 spent=$0.0272
+020-live-wiki-coffee-espresso-headed status=done verified=true category=pass task_ms=3752 steps=2 spent=$0.0288
+021-live-wiki-coffee-espresso-headless status=done verified=true category=pass task_ms=3373 steps=2 spent=$0.0304
+022-live-example-iana-headless status=done verified=true category=pass task_ms=2928 steps=2 spent=$0.0305
+023-live-example-iana-headed status=done verified=true category=pass task_ms=2895 steps=2 spent=$0.0307
+024-live-wiki-search-headless status=done verified=true category=pass task_ms=9007 steps=4 spent=$0.0325
+025-live-wiki-search-headed status=done verified=true category=pass task_ms=5985 steps=3 spent=$0.0347
+026-live-example-iana-headless status=done verified=true category=pass task_ms=2738 steps=2 spent=$0.0348
+027-live-example-iana-headed status=done verified=true category=pass task_ms=3097 steps=2 spent=$0.0350
+028-live-wiki-search-headless status=done verified=true category=pass task_ms=7962 steps=4 spent=$0.0368
+029-live-wiki-search-headed status=done verified=true category=pass task_ms=6828 steps=3 spent=$0.0390
+030-live-wiki-coffee-espresso-headless status=done verified=true category=pass task_ms=4086 steps=2 spent=$0.0406
+031-live-wiki-coffee-espresso-headed status=done verified=true category=pass task_ms=3662 steps=2 spent=$0.0422
+benchmark: schedule complete; 0 unexecuted; spent≈$0.0422

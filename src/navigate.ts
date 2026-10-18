@@ -17,6 +17,8 @@ import {
   classifyTypingFailure,
   detectBotProtection,
   heuristicQuery,
+  ID_TARGET,
+  listPosition,
   pickAlternate,
   PRICE_PER_MTOK_IN,
   RawElement,
@@ -37,6 +39,7 @@ import { askJev as askProvider, InvalidJevAnswer, resolveTransport, type JevTran
 
 const MAX_CONSOLE_EVENTS = 200;
 const STATE_EXCERPT_CHARS = 1_500;
+const MAX_STUCK_DEFERRALS = 2;
 // Display limits on credential runs: what model-facing strings may show.
 // Capture windows are these plus the longest secret representation.
 const CREDENTIAL_VISIBLE = { label: 80, option: 120, href: 120 };
@@ -483,7 +486,8 @@ async function pageObservables(page: Page, bounded: (cap: number) => number, exc
   return { url, title, textLength: data.length, scrollY: data.scrollY, excerpt: data.excerpt, visibleExcerpt: data.visibleExcerpt };
 }
 
-async function settle(page: Page, bounded: (cap: number) => number) {
+/** Returns true when the DOM went quiet, false when the settle window ran out first. */
+async function settle(page: Page, bounded: (cap: number) => number): Promise<boolean> {
   await page.waitForLoadState("domcontentloaded", { timeout: bounded(4_000) }).catch(() => {});
   // DOM-stability settle: two consecutive identical fingerprints mean the page
   // has stopped re-rendering, which is the signal we actually want; quiet
@@ -498,11 +502,12 @@ async function settle(page: Page, bounded: (cap: number) => number) {
           `${document.body?.innerText?.length ?? 0}:${document.querySelectorAll("a,button,input,select,textarea").length}`,
       )
       .catch(() => null);
-    if (fingerprint !== null && fingerprint === prev) return; // DOM went quiet
+    if (fingerprint !== null && fingerprint === prev) return true; // DOM went quiet
     prev = fingerprint;
     await page.waitForTimeout(250);
   }
   await page.waitForTimeout(400); // never settled; act anyway
+  return false;
 }
 
 // ── The loop ─────────────────────────────────────────────────────────────────
@@ -648,6 +653,7 @@ export async function navigate(options: NavigateOptions, externalSignal?: AbortS
   };
   const consoleEvents: ConsoleEvent[] = [];
   let consoleDropped = 0;
+  const inflight = new WeakMap<Page, number>();
   const currentStep = { n: 0 };
   const extractionProblems: string[] = [];
   // Set immediately before a fill is attempted: even a failed fill counts as
@@ -688,18 +694,28 @@ export async function navigate(options: NavigateOptions, externalSignal?: AbortS
       recordEvent({ type: `console_${type}` as ConsoleEvent["type"], text: R(msg.text()).slice(0, 300), page: R(p.url()).slice(0, 120) });
     };
     const onPageError = (err: Error) => recordEvent({ type: "page_error", text: R(String(err)).slice(0, 300), page: R(p.url()).slice(0, 120) });
-    const onRequestFailed = (req: Request) =>
+    // In-flight request count per page, read by the stuck gate: a page still
+    // fetching is not evidence that the run is stuck.
+    const onRequest = () => inflight.set(p, (inflight.get(p) ?? 0) + 1);
+    const onRequestDone = () => inflight.set(p, Math.max(0, (inflight.get(p) ?? 0) - 1));
+    const onRequestFailed = (req: Request) => {
+      onRequestDone();
       recordEvent({
         type: "request_failed",
         text: R(`${req.method()} ${req.url()} ${req.failure()?.errorText ?? ""}`).slice(0, 300),
         page: R(p.url()).slice(0, 120),
       });
+    };
     p.on("console", onConsole);
     p.on("pageerror", onPageError);
+    p.on("request", onRequest);
+    p.on("requestfinished", onRequestDone);
     p.on("requestfailed", onRequestFailed);
     observerCleanups.push(() => {
       p.off("console", onConsole);
       p.off("pageerror", onPageError);
+      p.off("request", onRequest);
+      p.off("requestfinished", onRequestDone);
       p.off("requestfailed", onRequestFailed);
     });
   };
@@ -796,6 +812,8 @@ export async function navigate(options: NavigateOptions, externalSignal?: AbortS
     // "typed" (a fill happened but the page did not change) and "no_change"
     // (nothing observable happened) both make a repeat proposal redundant.
     let lastRedundant: "typed" | "no_change" | null = null;
+    let lastSettleStable = true; // the initial goto has no settle window to judge
+    let stuckDeferrals = 0; // times a busy page has deferred the stuck stop in this run
     const history: Array<{ step: number; action: string; outcome: string }> = [];
 
     for (let step = 1; step <= maxSteps; step++) {
@@ -852,6 +870,11 @@ export async function navigate(options: NavigateOptions, externalSignal?: AbortS
         no_interactive_elements: elements.length === 0,
         history,
       };
+      // Code-owned comparison for paginated lists; only read when the task names an ID.
+      const position = ID_TARGET.test(safeTask)
+        ? listPosition(safeTask, R(await page.evaluate(() => document.body?.innerText ?? "").catch(() => "")))
+        : null;
+      if (position) Object.assign(state, { list_position: position });
       const answers = await askJev(budget, state, stepQuestions(buildCriteria(elements)));
       const actionAnswer = answers.action as Extract<JevAnswer, { type: "choice" }>;
       const proposed: string = actionAnswer.choice;
@@ -878,10 +901,21 @@ export async function navigate(options: NavigateOptions, externalSignal?: AbortS
         status = "goal_achieved";
         break;
       }
+      // The stuck watcher stands down while the page is still loading or
+      // changing: content that is on its way is not a lack of progress. At
+      // most MAX_STUCK_DEFERRALS times per run, because pages with analytics
+      // polling or a long-poll request look busy forever.
+      let stuckDeferred = false;
       if ((answers.stuck as Extract<JevAnswer, { type: "noul" }>).noul > 0.85 && step > 2) {
-        steps.push({ ...base, executed_action: null, detail: "stuck watcher fired; proposed action not executed", outcome: "stuck watcher fired before acting" });
-        status = "stuck";
-        break;
+        const readyState = await page.evaluate(() => document.readyState).catch(() => "complete");
+        const busy = (inflight.get(page) ?? 0) > 0 || readyState !== "complete" || !lastSettleStable;
+        stuckDeferred = busy && stuckDeferrals < MAX_STUCK_DEFERRALS;
+        if (stuckDeferred) stuckDeferrals++;
+        if (!stuckDeferred) {
+          steps.push({ ...base, executed_action: null, detail: "stuck watcher fired; proposed action not executed", outcome: "stuck watcher fired before acting" });
+          status = "stuck";
+          break;
+        }
       }
 
       // Repeat-no-op recovery: switch to the next-best option from the
@@ -889,15 +923,36 @@ export async function navigate(options: NavigateOptions, externalSignal?: AbortS
       // across similar elements is usually several acceptable alternatives.
       let chosen = proposed;
       let recoveryReason: string | undefined;
-      if (lastExecuted === proposed && lastRedundant !== null) {
+      // A repeated wait is the point of waiting, not a no-op loop; the step and
+      // time budgets and the stuck watcher still bound it.
+      if (lastExecuted === proposed && lastRedundant !== null && proposed !== "wait") {
+        // Recovery acts for the model, so it may only take actions that cannot
+        // write: scrolling, or following a plain link (an a[href];
+        // buildActionSpace already drops #, javascript:, mailto: and tel:).
+        // A button, field, select or submit could change state the task never
+        // asked for, so with no read-only alternate the run stops as stuck.
+        const readOnly = (option: string) =>
+          option === "scroll_down" ||
+          option === "scroll_up" ||
+          option === "wait" ||
+          elements.some((e) => option === `click_${e.id}` && raw.some((r) => r.attr === e.attr && r.tag === "a" && r.href !== ""));
         // "done" is excluded like "back": an alternate with any positive
         // probability is too weak a basis to terminate the run. Termination
         // stays with the model's own proposal and the goal/stuck watchers.
-        const alternate = pickAlternate(probabilities, new Set([proposed, "done"]));
-        if (alternate) {
-          chosen = alternate;
-          recoveryReason = "repeated action had no further effect; switched to next-best option";
+        const alternate = pickAlternate(probabilities, new Set([proposed, "done"]), readOnly);
+        if (!alternate) {
+          steps.push({
+            ...base,
+            executed_action: null,
+            recovery_reason: "repeated action had no further effect and no read-only alternate (scroll or link) exists",
+            detail: "recovery stopped the run instead of guessing; proposed action not executed",
+            outcome: "recovery stopped before acting",
+          });
+          status = "stuck";
+          break;
         }
+        chosen = alternate;
+        recoveryReason = "repeated action had no further effect; switched to next-best read-only option";
       }
 
       const element = elements.find(
@@ -934,6 +989,9 @@ export async function navigate(options: NavigateOptions, externalSignal?: AbortS
         if (chosen === "back") {
           const wentBack = await page.goBack({ waitUntil: "domcontentloaded", timeout: bounded(10_000) }).catch(() => null);
           detail = wentBack ? "went back" : "no history to go back to";
+        } else if (chosen === "wait") {
+          await page.waitForTimeout(bounded(2_000));
+          detail = "waited 2 s";
         } else if (chosen === "scroll_down" || chosen === "scroll_up") {
           await page.evaluate(
             (dir) => window.scrollBy(0, dir * window.innerHeight * 0.8),
@@ -1077,13 +1135,14 @@ export async function navigate(options: NavigateOptions, externalSignal?: AbortS
         actionError = R((error as Error).message).slice(0, 160);
       }
 
-      await settle(page, bounded);
+      lastSettleStable = await settle(page, bounded);
       if (pendingPage) {
         page = pendingPage;
         pendingPage = null;
-        await settle(page, bounded);
+        lastSettleStable = await settle(page, bounded);
         detail += " (followed new tab)";
       }
+      if (stuckDeferred) detail += " (stuck watcher deferred: page still loading or changing)";
 
       const after = await pageObservables(page, bounded, excerptCap);
       const afterState = stateTarget ? await stateTarget.evaluate(readState).catch(() => null) : null;

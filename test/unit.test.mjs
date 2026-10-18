@@ -6,6 +6,7 @@ import {
   buildCriteria,
   detectBotProtection,
   heuristicQuery,
+  listPosition,
   isNoiseHref,
   isNoiseName,
   MAX_ELEMENTS,
@@ -160,7 +161,7 @@ test("buildCriteria stays within the Choice option limit and includes controls",
   const { elements } = buildActionSpace(many);
   const criteria = buildCriteria(elements);
   assert.ok(Object.keys(criteria).length <= 255);
-  for (const control of ["scroll_down", "scroll_up", "back", "done"]) {
+  for (const control of ["scroll_down", "scroll_up", "wait", "back", "done"]) {
     assert.ok(criteria[control], `missing control ${control}`);
   }
 });
@@ -172,6 +173,21 @@ test("pickAlternate returns next-best non-excluded option", () => {
   );
   assert.equal(alternate, "click_e3"); // back and done are never chosen as alternates
   assert.equal(pickAlternate({ a: 0 }, new Set()), null);
+  assert.equal(pickAlternate({ click_e1: 0.6, scroll_up: 0.1 }, new Set(), (o) => o.startsWith("scroll_")), "scroll_up");
+  assert.equal(pickAlternate({ click_e1: 0.6 }, new Set(), () => false), null);
+});
+
+test("listPosition states where an ID-shaped target sits relative to a sorted visible list", () => {
+  const page2 = "Your orders A-1037 2026-10-07 A-1036 A-1035 A-1034 A-1028 Next";
+  assert.match(listPosition("Open the details of order A-1022.", page2), /A-1022 comes after them, on a later page/);
+  assert.match(listPosition("Open order A-1040", page2), /comes before them, on an earlier page/);
+  assert.match(listPosition("Open order A-1030", page2), /would fall inside that range/);
+  assert.equal(listPosition("Open order A-1035", page2), "A-1035 is on this page.");
+  assert.equal(listPosition("Open invoice INV-7", "INV-10 INV-11 INV-12"), null, "IDs need at least two digits");
+  assert.equal(listPosition("Open the Q3 2026 sales summary", "2023 2024 2025"), null, "bare numbers are not IDs");
+  assert.equal(listPosition("Open order A-1022", "A-1037 A-1030 A-1036"), null, "unsorted IDs give no hint");
+  assert.equal(listPosition("Open order A-1022", "A-1037 A-1036"), null, "fewer than 3 IDs give no hint");
+  assert.equal(listPosition("Find the price of the Pro plan", page2), null, "no ID in the task");
 });
 
 test("heuristicQuery strips task boilerplate", () => {

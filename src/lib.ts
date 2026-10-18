@@ -159,6 +159,7 @@ export function buildCriteria(elements: PageElement[]): Record<string, string> {
   }
   criteria["scroll_down"] = "Scroll down one screen to reveal more of the page";
   criteria["scroll_up"] = "Scroll up one screen";
+  criteria["wait"] = "Wait about 2 seconds for content that is still loading or updating to appear";
   criteria["back"] = "Go back to the previous page; this branch is wrong";
   criteria["done"] = "The task is already complete; stop here";
   return criteria;
@@ -168,14 +169,18 @@ export function selectorFor(el: PageElement): string {
   return `[data-jev-id="${el.attr}"]`;
 }
 
-/** Next-best action from a Choice distribution, excluding known-bad options. */
-export function pickAlternate(probabilities: Record<string, number> | undefined, exclude: Set<string>): string | null {
+/** Next-best action from a Choice distribution, excluding known-bad options and any option `allow` rejects. */
+export function pickAlternate(
+  probabilities: Record<string, number> | undefined,
+  exclude: Set<string>,
+  allow: (option: string) => boolean = () => true,
+): string | null {
   const ranked = Object.entries(probabilities ?? {}).sort((a, b) => b[1] - a[1]);
   for (const [option, p] of ranked) {
     // back is a judgment the recovery should not make for the agent; done is a
     // stop gate, not an executable element action (executing it would error).
     if (option === "back" || option === "done") continue;
-    if (exclude.has(option)) continue;
+    if (exclude.has(option) || !allow(option)) continue;
     if (p <= 0) continue;
     return option;
   }
@@ -196,6 +201,35 @@ export function heuristicQuery(task: string): string {
     .split(/\s+/)
     .filter((w) => w && !STOP_WORDS.has(w));
   return words.slice(0, 6).join(" ");
+}
+
+/**
+ * Where an ID-shaped target from the task (e.g. "A-1022") sits relative to a
+ * sorted run of same-prefix IDs on the page. Jev cannot compare the numbers
+ * itself, so code states the comparison as a fact. Returns null unless the
+ * page shows at least 3 such IDs in strictly increasing or decreasing order.
+ */
+export const ID_TARGET = /\b([A-Za-z]{1,6}[-#]?)(\d{2,})\b/;
+
+export function listPosition(task: string, pageText: string): string | null {
+  const target = task.match(ID_TARGET);
+  if (!target) return null;
+  const [id, prefix, digits] = target;
+  const escaped = prefix.replace(/[-#]/g, "\\$&");
+  const seen = [...pageText.matchAll(new RegExp(`\\b${escaped}(\\d{2,})\\b`, "g"))].map((m) => Number(m[1]));
+  const n = Number(digits);
+  if (seen.includes(n)) return `${id} is on this page.`;
+  if (seen.length < 3) return null;
+  const descending = seen.every((v, i) => i === 0 || v < seen[i - 1]);
+  const ascending = seen.every((v, i) => i === 0 || v > seen[i - 1]);
+  if (!descending && !ascending) return null;
+  const first = seen[0], last = seen[seen.length - 1];
+  const range = `The visible items run from ${prefix}${first} ${descending ? "down" : "up"} to ${prefix}${last}`;
+  const after = descending ? n < last : n > last;
+  const before = descending ? n > first : n < first;
+  if (after) return `${id} is not on this page. ${range}, so ${id} comes after them, on a later page.`;
+  if (before) return `${id} is not on this page. ${range}, so ${id} comes before them, on an earlier page.`;
+  return `${id} is not on this page. ${range}; ${id} would fall inside that range but is not listed.`;
 }
 
 /** jev-1.12 published pricing: input $0.042 per M tokens, output free. */

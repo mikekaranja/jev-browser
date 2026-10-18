@@ -1,0 +1,115 @@
+{
+ "label": "synthetic-local, real Jev loop",
+ "stop": {
+  "stop_reason": "schedule complete",
+  "spent_usd_estimate": 0.0017686200000000011,
+  "unexecuted": []
+ },
+ "all_phases_ledger": {
+  "outbound_requests": 20,
+  "settled_usd_est": 0.0017686199999999998,
+  "unknown_billing_requests": 0,
+  "unknown_billing_reserved_usd": 0
+ },
+ "warmups": [],
+ "overall": {
+  "attempts": 5,
+  "verified_passes": 5,
+  "completion_rate": 1,
+  "completion_wilson95": [
+   0.5655085052479191,
+   1
+  ],
+  "claimed_successes": 5,
+  "false_successes": 0,
+  "false_success_rate_of_attempts": 0,
+  "false_success_rate_of_claims": 0,
+  "failure_categories": {
+   "pass": 5
+  },
+  "task_ms_median": 2925,
+  "task_ms_p95": 3241,
+  "startup_ms_median": 398,
+  "startup_ms_p95": 407,
+  "pass_task_ms_median": 2925,
+  "executed_actions_median": 3,
+  "decision_steps_median": 4,
+  "recoveries_total": 0,
+  "action_errors_total": 0,
+  "jev_calls_total": 20,
+  "jev_http_requests_total": 20,
+  "jev_retries_total": 0,
+  "jev_input_tokens_total": 42110,
+  "typing_http_requests_total": 0,
+  "jev_cost_usd_est": 0.0017686199999999998,
+  "typing_cost_usd_est": 0,
+  "total_cost_usd_est": 0.0017686199999999998,
+  "cost_per_verified_success_usd_est": 0.000353724,
+  "degraded_runs": 0,
+  "small_sample": true
+ },
+ "by_mode": {
+  "headless": {
+   "attempts": 5,
+   "verified_passes": 5,
+   "completion_rate": 1,
+   "completion_wilson95": [
+    0.5655085052479191,
+    1
+   ],
+   "claimed_successes": 5,
+   "false_successes": 0,
+   "false_success_rate_of_attempts": 0,
+   "false_success_rate_of_claims": 0,
+   "failure_categories": {
+    "pass": 5
+   },
+   "task_ms_median": 2925,
+   "task_ms_p95": 3241,
+   "startup_ms_median": 398,
+   "startup_ms_p95": 407,
+   "pass_task_ms_median": 2925,
+   "executed_actions_median": 3,
+   "decision_steps_median": 4,
+   "recoveries_total": 0,
+   "action_errors_total": 0,
+   "jev_calls_total": 20,
+   "jev_http_requests_total": 20,
+   "jev_retries_total": 0,
+   "jev_input_tokens_total": 42110,
+   "typing_http_requests_total": 0,
+   "jev_cost_usd_est": 0.0017686199999999998,
+   "typing_cost_usd_est": 0,
+   "total_cost_usd_est": 0.0017686199999999998,
+   "cost_per_verified_success_usd_est": 0.000353724,
+   "degraded_runs": 0,
+   "small_sample": true
+  }
+ },
+ "by_case_mode": {
+  "pagination": {
+   "headless": {
+    "n": 5,
+    "pass": 5,
+    "statuses": [
+     "done",
+     "done",
+     "done",
+     "done",
+     "done"
+    ],
+    "categories": [
+     "pass",
+     "pass",
+     "pass",
+     "pass",
+     "pass"
+    ],
+    "task_ms_median": 2925,
+    "steps_median": 4
+   }
+  }
+ },
+ "paired": null,
+ "negative_controls": null
+}
