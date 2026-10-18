@@ -1,6 +1,6 @@
 # jev-browser benchmark report
 
-Checkout: commit `78d425087d4e34f136488e559cffaf33376b4f0a` (= `origin/main`, package 0.8.8). `dist/` is byte-identical to a fresh `tsc` build of `src/`. Production code is unchanged (`git diff` is empty). Untracked before this work: `benchmark/` (earlier, separate benchmark) and `.memsearch/`. Runs on 2026-10-18, 17:18–17:30 UTC. Methodology and commands: `README.md`.
+Checkout: commit `78d425087d4e34f136488e559cffaf33376b4f0a` (= `origin/main`, package 0.8.8). `dist/` is byte-identical to a fresh `tsc` build of `src/`. Production code is unchanged (`git diff` is empty). Untracked before this work: `benchmark/` (earlier, separate benchmark) and `.memsearch/`. Runs on 2026-10-18, 17:18–17:30 and 17:50–17:54 UTC. Methodology and commands: `README.md`.
 
 Evidence labels: **synthetic-local** = loopback fixture, real Jev loop. **live-public** = public websites, real Jev loop. **harness validation** = oracle or mock judgments, never a Jev result.
 
@@ -43,23 +43,25 @@ Local: 60 pairs. Both pass 46, headed only 2, headless only 2, both fail 10. Exa
 
 Conclusion for this machine and suite: no measured difference in outcome, and headed is slower by under 0.1 s per task. The suite did not test lost focus, occluded windows or a background headed window (limitation 3).
 
-### Public smoke suite (live-public, `results/public-smoke-1/`)
+### Public smoke suite (live-public, `results/public-smoke-5rep/`)
 
-3 cases × 2 modes × 3 repetitions = 18 measured attempts, plus 2 excluded warm-ups (both passed). Browser POSTs were aborted (2 Wikipedia analytics POSTs per Wikipedia page view).
+3 cases × 2 modes × 5 repetitions = 30 measured attempts, plus 2 excluded warm-ups (both passed). All 32 slots ran. Browser POSTs were aborted (2 Wikipedia analytics POSTs per Wikipedia page view).
 
-| Case | Headed | Headless | Task median |
+| Case | Headed | Headless | Task median / p95 |
 |---|---|---|---|
-| live-wiki-coffee-espresso | 3/3 | 3/3 | 3,967 ms |
-| live-wiki-search | 3/3 | 3/3 | 6,049 ms |
-| live-example-iana | 3/3 | 2/3 | 3,004.5 ms |
+| live-wiki-coffee-espresso | 5/5 | 5/5 | 3,954 / 4,172 ms |
+| live-wiki-search | 5/5 | 5/5 | 6,980 / 13,205 ms |
+| live-example-iana | 5/5 | 5/5 | 3,058 / 3,325 ms |
 
-Overall 17/18 (94.4%, Wilson 74.2–99.0%). 1 false success: one headless attempt proposed `done` at step 1 on `example.com` (confidence 0.45, goal 0.82). The task "Open the page that explains what example domains are for" is ambiguous, because example.com itself says what the domain is for. The grader requires the IANA page and was fixed before the run, so the result stays a false success. Estimated cost $0.0231 (Jev + typing), $0.00136 per verified success. Small sample: 9 pairs.
+Overall 30/30 (100%, Wilson 88.6–100%). 0 false successes. Paired: 15 pairs, all both-pass. Median task-time difference (headed − headless): −327 ms. The three slowest attempts (12.5–13.2 s) were 4-step headless Wikipedia searches in which Jev time was only about 2.5 s, so page loading and settling took the rest. Startup medians were higher in this campaign (751 ms headless, 1,129 ms headed, p95 1,761 ms) than in the earlier campaigns (about 410–500 ms). The cause was not measured. Estimated cost $0.0415 (Jev $0.0413, typing $0.0002), $0.00138 per verified success. Small sample: 15 pairs.
+
+**Protocol deviation, now corrected.** The first public campaign (`results/public-smoke-1/`, 17:28 UTC) ran 3 repetitions, not the 5 the protocol requires. The 3-rep plan was in the approval request but was not flagged as a deviation. The 5-rep campaign above is the protocol run. The 3-rep campaign is kept, not merged into the 5-rep numbers: 17/18 verified (94.4%, Wilson 74.2–99.0%), with 1 false success. In that false success, one headless attempt proposed `done` at step 1 on `example.com` (confidence 0.45, goal 0.82). The task "Open the page that explains what example domains are for" is ambiguous, because example.com itself says what the domain is for. The grader requires the IANA page and was fixed before the run, so that result stays a false success. The same case passed 10/10 in the 5-rep campaign, so the false-success rate for this task is about 1 in 16 attempts over both campaigns, not 0.
 
 ## README claims, tested as hypotheses
 
 | Claim | Result | Evidence |
 |---|---|---|
-| "Navigated Wikipedia from the Coffee article to Espresso in about 4 seconds, for $0.0016." | Supported. 6/6 measured attempts, task time 3,476–4,035 ms, $0.00160 each (38,035–38,125 input tokens, 2 Jev calls). Browser startup (420–500 ms) is extra and is not in the claim. | live-public |
+| "Navigated Wikipedia from the Coffee article to Espresso in about 4 seconds, for $0.0016." | Supported. 5-rep campaign: 10/10 measured attempts, task time 3,595–4,172 ms, $0.00160 each (38,035–38,125 input tokens, 2 Jev calls). The 3-rep campaign gave 6/6 at 3,476–4,035 ms. Browser startup (500–1,802 ms in the 5-rep campaign) is extra and is not in the claim. | live-public |
 | "Filled a contact form and stopped without submitting it." | Supported with a typing provider: 10/10 exact, 0 submissions. Without a typing provider, ordinary text fields stay empty by design (`src/navigate.ts:948`). The mock run shows this as `typing_unavailable`. | synthetic-local |
 | "Fast and very cheap" | 2.55 s median task, $0.00032 per verified local success. These numbers apply to short tasks on small pages: Wikipedia pages cost about 12× more tokens per call. | both |
 | "drives a real headless browser" | By default, headless runs Playwright's separate *chromium headless shell*, not the full Chromium that headed uses (finding 5). | source + `meta.json` |
@@ -93,7 +95,7 @@ Overall 17/18 (94.4%, Wilson 74.2–99.0%). 1 false success: one headless attemp
 
 ## Spend and runtime
 
-Approved caps: $2 total, 3 hours. Spent (estimate, all phases including warm-ups and the pilot): $0.0582. Pilot $0.0011, local $0.0308, public $0.0263. Paid runtime: about 11 minutes (17:18:31–17:29:40 UTC).
+Approved caps: $2 total, 3 hours. Spent (estimate, all phases including warm-ups and the pilot): $0.1029. Pilot $0.0011, local $0.0308, public 3-rep $0.0263, public 5-rep $0.0447. Paid runtime: about 15 minutes (17:18:31–17:29:40 and 17:49:58–17:53:50 UTC).
 
 ## Harness validation (no paid calls)
 
@@ -111,7 +113,7 @@ Repository tests: `TMPDIR=$(realpath "$TMPDIR") npm test` → 87 pass, 0 fail. `
 ```sh
 node benchmarks/report.mjs benchmarks/results/local-paired-1   # re-aggregate the measured campaign
 zsh -ic 'node benchmarks/run.mjs --transport typesafe --paid-approved --budget-usd 1.70 --max-minutes 150 --typing openrouter --typing-price-in 0.18 --typing-price-out 0.72 --reps 5 --warmup 1 --out benchmarks/results/<new>'
-zsh -ic 'node benchmarks/run.mjs --suite public --transport typesafe --paid-approved --budget-usd 0.25 --max-minutes 25 --typing openrouter --typing-price-in 0.18 --typing-price-out 0.72 --reps 3 --warmup 1 --out benchmarks/results/<new>'
+zsh -ic 'node benchmarks/run.mjs --suite public --transport typesafe --paid-approved --budget-usd 0.25 --max-minutes 25 --typing openrouter --typing-price-in 0.18 --typing-price-out 0.72 --reps 5 --warmup 1 --out benchmarks/results/<new>'
 ```
 
 Each results directory holds `meta.json` (environment, hashes, schedule, written before attempts), `runs.jsonl` and `runs.csv` (one row per attempt), `ledger.jsonl` (every outbound request), `stop.json`, `summary.json`, `summary.md`, and `traces/` (full `navigate()` result, Jev call log, fixture state and final screenshot per attempt). `traces/` is kept on the benchmark machine and is not in the repository. The step-level evidence quoted in the findings comes from those local traces.

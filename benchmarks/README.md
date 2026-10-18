@@ -42,7 +42,7 @@ zsh -ic 'node benchmarks/run.mjs --transport typesafe --paid-approved --budget-u
 node benchmarks/run.mjs --transport typesafe --paid-approved --budget-usd <cap> --modes headless --out benchmarks/results/<new>
 node benchmarks/run.mjs --transport typesafe --paid-approved --budget-usd <cap> --modes headed   --out benchmarks/results/<new>
 # public read-only smoke suite (live evidence)
-node benchmarks/run.mjs --suite public --transport typesafe --paid-approved --budget-usd <cap> --reps 3 --out benchmarks/results/<new>
+node benchmarks/run.mjs --suite public --transport typesafe --paid-approved --budget-usd <cap> --reps 5 --out benchmarks/results/<new>
 # re-aggregate an existing results directory
 node benchmarks/report.mjs benchmarks/results/<run>
 ```
